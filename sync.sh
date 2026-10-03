@@ -52,5 +52,51 @@ path.write_text(patched, encoding='utf-8')
 print(f'@require -> {host}/locals.js?v{version}')
 PY
 
+python3 - "$HOST" <<'PY2'
+# 由 main.user.js + locals.js 生成单文件版 all-in-one.user.js：
+#   * 去掉 @require（词库内联，任何脚本管理器都能跑，包括 Via 的内置管理器）
+#   * 补一层 GM 接口垫片（Via 等简易引擎缺少 GM_* 时自动补齐）
+import pathlib
+import re
+
+main = pathlib.Path('main.user.js').read_text(encoding='utf-8')
+dictionary = pathlib.Path('locals.js').read_text(encoding='utf-8')
+
+shim = '''/* ===== GM 接口垫片（Via 等简易脚本引擎缺少以下接口时自动补齐） ===== */
+(function () {
+  var store = window.localStorage, ns = function (k) { return 'gm:' + k; };
+  if (typeof GM_addStyle === 'undefined') window.GM_addStyle = function (css) {
+    var s = document.createElement('style'); s.textContent = css;
+    (document.head || document.documentElement).appendChild(s); return s;
+  };
+  if (typeof GM_getValue === 'undefined') window.GM_getValue = function (k, d) {
+    try { var v = store.getItem(ns(k)); return v === null ? d : JSON.parse(v); } catch (e) { return d; }
+  };
+  if (typeof GM_setValue === 'undefined') window.GM_setValue = function (k, v) {
+    try { store.setItem(ns(k), JSON.stringify(v)); } catch (e) {}
+  };
+  if (typeof GM_xmlhttpRequest === 'undefined') window.GM_xmlhttpRequest = function (o) {
+    fetch(o.url, { method: o.method || 'GET', headers: o.headers || {}, body: o.data })
+      .then(function (r) { return r.text().then(function (t) { return { r: r, t: t }; }); })
+      .then(function (x) { if (o.onload) o.onload({ status: x.r.status, responseText: x.t, response: x.t, finalUrl: o.url }); })
+      .catch(function (e) { if (o.onerror) o.onerror(e); });
+  };
+  if (typeof GM_registerMenuCommand === 'undefined') window.GM_registerMenuCommand = function () { return 0; };
+  if (typeof GM_unregisterMenuCommand === 'undefined') window.GM_unregisterMenuCommand = function () {};
+  if (typeof GM_notification === 'undefined') window.GM_notification = function () {};
+})();
+/* ===== 垫片结束 ===== */
+'''
+
+body = re.sub(r'// @require[^\n]*\n', '// (词库已内联在本文件中，无需 @require)\n', main, count=1)
+marker = '// ==/UserScript==\n'
+cut = body.index(marker) + len(marker)
+out = (body[:cut] + '\n' + shim
+       + '\n/* ===== 以下为内联词库 locals.js（与上游一致，未改动） ===== */\n'
+       + dictionary + '\n/* ===== 词库结束 ===== */\n' + body[cut:])
+pathlib.Path('all-in-one.user.js').write_text(out, encoding='utf-8')
+print('all-in-one.user.js: %.2f MB' % (len(out.encode()) / 1048576))
+PY2
+
 echo "完成。检查 diff 后提交："
 echo "  git add -A && git commit -m 'sync upstream $VERSION' && git push"

@@ -22,18 +22,23 @@
 
 ### 2. 安装脚本
 
-打开这个地址，确认安装：
+**两个版本，按你的脚本管理器选一个：**
 
-```
-https://wxj-71.github.io/github-chinese-cn/main.user.js
-```
+| 版本 | 地址 | 适用 |
+| --- | --- | --- |
+| **标准版**（词库走 `@require`） | `https://wxj-71.github.io/github-chinese-cn/main.user.js` | Tampermonkey / Violentmonkey 等完整脚本管理器 |
+| **单文件版**（词库内联 + GM 接口垫片） | `https://wxj-71.github.io/github-chinese-cn/all-in-one.user.js` | **Via 浏览器**等内置脚本管理器：它们通常不支持 `@require` 拉 2 MB 词库，也缺 `GM_addStyle` / `GM_getValue` 等接口，这一版把两者都补齐了 |
+
+打开对应地址、确认安装即可（单文件版 1.96 MB，下载稍慢，装完就好）。
 
 ### 3. 打开 GitHub
 
 <https://github.com/> 的菜单、按钮、设置项即变为中文。
 
-首次安装会拉取约 2 MB 词库（实测约 40 KB/s，**大概 1 分钟**），脚本管理器会缓存它，
-之后不再下载。若首屏没变化，刷新一次页面。
+标准版首次会拉取约 2 MB 词库（实测约 40 KB/s，**大概 1 分钟**），脚本管理器会缓存它，
+之后不再下载。若首屏没变化，刷新一次页面；用 Via 的话还要确认
+**设置 → 脚本** 里的「启用脚本」和该脚本条目两个开关都是打开的（Via 的开关状态在
+无障碍树里读不出来，只能眼看）。
 
 ## 各地址在国内的可用性（实测）
 
@@ -52,7 +57,8 @@ https://wxj-71.github.io/github-chinese-cn/main.user.js
 ## 同步上游
 
 ```sh
-sh sync.sh          # 重新下载上游脚本/词库/LICENSE，并自动重打 @require 补丁
+sh sync.sh          # 重新下载上游脚本/词库/LICENSE，重打 @require 补丁，
+                    # 并重新生成 all-in-one.user.js（内联词库 + GM 接口垫片）
 git add -A && git commit -m "sync upstream" && git push
 ```
 
